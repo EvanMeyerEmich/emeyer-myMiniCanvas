@@ -3,6 +3,7 @@ from typing import List
 from course import CourseManager, Course
 from user import UserManager
 from fastapi.security import APIKeyHeader
+from pydantic import BaseModel, Field
 
 coursemanager = CourseManager()
 usermanager = UserManager()
@@ -16,18 +17,15 @@ app = FastAPI()
 def welcome():
     return "Welcome to our miniCanvas!"
 
-@app.post("/courses/{coursecode}")
-def create_a_course(coursecode: str, 
-                    semester: str, 
-                    teacher_id_list: List[int]) -> int:
-    ### an admin should create a course
-    teacher_list = usermanager.find_users(teacher_id_list)
-    course_id = coursemanager.create_a_course(coursecode, semester, teacher_list)
-    
-    course = coursemanager.find_a_course(course_id)
-    print(str(course.teacher_list[0]))
+class CourseCreate(BaseModel):
+    semester: str
+    teacher_id_list: List[int] = Field(..., json_schema_extra={'example': [1, 2, 3]})
 
-    return course_id
+@app.post("/courses/{coursecode}")
+def create_a_course(coursecode: str, course_data: CourseCreate):
+    teacher_list = usermanager.find_users(course_data.teacher_id_list)
+    course_id = coursemanager.create_a_course(coursecode, course_data.semester, teacher_list)
+    return {"course_id": course_id}
 
 @app.put("/courses/{courseid}/students")
 def import_students(courseid: int,
